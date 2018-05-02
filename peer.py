@@ -3,13 +3,14 @@ from ttk import *
 from enum import Enum
 import socket
 import thread
+import string
 
 CHECKED_OUT = 0 
 CHECKED_IN = 1
 
 class ChatClient(Frame):
   
-  def __init__(self, root):
+  def __init__(self, root, client_id):
     Frame.__init__(self, root)
     self.root = root
     self.draw_gui()
@@ -18,8 +19,10 @@ class ChatClient(Frame):
     self.buffsize = 1024
     self.peers = {}
     self.counter = 0
-    self.books = {"A": CHECKED_IN, "B": CHECKED_IN, "C": CHECKED_IN, 
-                  "D": CHECKED_IN, "E": CHECKED_IN}
+    self.books = {}
+    dictionary = list(string.ascii_uppercase)
+    for i in range(5):
+      self.books[dictionary[i + (client_id - 1) * 5]] = CHECKED_IN
 
     self.log_message("bookshelf", str(self.books.keys()))
   
@@ -59,7 +62,6 @@ class ChatClient(Frame):
     client_port_field.grid(row=0, column=7)
     client_set.grid(row=0, column=8, padx=5)
     
-
     logs = Frame(parent_frame)
     self.received_messages = Text(logs, bg="white", width=60, height=30, state=DISABLED)
     self.friends = Listbox(logs, bg="white", width=30, height=30)
@@ -69,15 +71,15 @@ class ChatClient(Frame):
     submit_text = Frame(parent_frame)
     self.message = StringVar()
     self.message_field = Entry(submit_text, width=20, textvariable=self.message)
-    send_message = Button(submit_text, text="Request", width=10, command=self.handle_send)
+    send_message = Button(submit_text, text="Request", width=10, command=self.handle_request)
     self.message_field.grid(row=0, column=0, sticky=W)
     send_message.grid(row=0, column=1, padx=5)
 
-    send_message2 = Button(submit_text, text="Return", width=10, command=self.handle_send)
-    send_message2.grid(row=0, column=2, padx=5)
+    # send_return = Button(submit_text, text="Return", width=10, command=self.handle_return)
+    # send_return.grid(row=0, column=2, padx=5)
 
-    send_message2 = Button(submit_text, text="View Bookshelf", width=10, command=self.view_bookshelf)
-    send_message2.grid(row=1, column=1, padx=5)
+    view_shelf = Button(submit_text, text="View Bookshelf", width=10, command=self.view_bookshelf)
+    view_shelf.grid(row=1, column=1, padx=5)
 
 
     self.statusLabel = Label(parent_frame)
@@ -147,7 +149,7 @@ class ChatClient(Frame):
         data = clientsoc.recv(self.buffsize)
         if not data:
             break
-        if "BOOK" in data: 
+        if "REQUEST" in data: 
           book = data.split("BOOK:")[1]
           message = None
           if book in self.books.keys():  
@@ -170,7 +172,7 @@ class ChatClient(Frame):
     clientsoc.close()
     self.status("Client disconnected from %s:%s" % clientaddr)
   
-  def handle_send(self):
+  def handle_request(self):
     if self.server_status == 0:
       self.status("Set server address first")
       return
@@ -179,8 +181,19 @@ class ChatClient(Frame):
         return
     self.log_message("me", msg)
     for client in self.peers.keys():
-      client.send("BOOK:" + msg)
+      client.send("REQUEST:" + msg)
   
+  def handle_return(self): 
+    if self.server_status == 0:
+      self.status("Set server address first")
+      return
+    msg = self.message.get().replace(' ','')
+    if msg == '':
+        return
+    self.log_message("me", msg)
+    for client in self.peers.keys():
+      client.send("REQUEST:" + msg)
+      
   def log_message(self, client, msg):
     self.received_messages.config(state=NORMAL)
     self.received_messages.insert("end",client+": "+msg+"\n")
@@ -192,19 +205,23 @@ class ChatClient(Frame):
     self.friends.insert(self.counter,"%s:%s" % clientaddr)
   
   def remove_client(self, clientsoc, clientaddr):
-      print self.peers
-      self.friends.delete(self.peers[clientsoc])
-      del self.peers[clientsoc]
-      print self.peers
+    print self.peers
+    self.friends.delete(self.peers[clientsoc])
+    del self.peers[clientsoc]
+    print self.peers
   
   def status(self, msg):
     self.statusLabel.config(text=msg)
     print msg
       
-def main():  
+def main(client_id):  
   root = Tk()
-  ChatClient(root)
+  ChatClient(root, client_id)
   root.mainloop()  
 
 if __name__ == '__main__':
-  main()  
+  if len(sys.argv) != 2 or int(sys.argv[1]) < 1: 
+    print("ERROR: Usage 'python peer.py <client_id of at least 1>'")
+    sys.exit()
+  else:
+    main(int(sys.argv[1]))  

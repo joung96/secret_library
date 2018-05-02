@@ -58,7 +58,6 @@ class ChatClient(Frame):
     client_port_field.grid(row=0, column=7)
     client_set.grid(row=0, column=8, padx=5)
     
-
     logs = Frame(parent_frame)
     self.received_messages = Text(logs, bg="white", width=60, height=30, state=DISABLED)
     self.friends = Listbox(logs, bg="white", width=30, height=30)
@@ -68,15 +67,15 @@ class ChatClient(Frame):
     submit_text = Frame(parent_frame)
     self.message = StringVar()
     self.message_field = Entry(submit_text, width=20, textvariable=self.message)
-    send_message = Button(submit_text, text="Request", width=10, command=self.handle_send)
+    send_message = Button(submit_text, text="Request", width=10, command=self.handle_request)
     self.message_field.grid(row=0, column=0, sticky=W)
     send_message.grid(row=0, column=1, padx=5)
 
-    send_message2 = Button(submit_text, text="Return", width=10, command=self.handle_send)
-    send_message2.grid(row=0, column=2, padx=5)
+    # send_return = Button(submit_text, text="Return", width=10, command=self.handle_return)
+    # send_return.grid(row=0, column=2, padx=5)
 
-    send_message2 = Button(submit_text, text="View Bookshelf", width=10, command=self.view_bookshelf)
-    send_message2.grid(row=1, column=1, padx=5)
+    view_shelf = Button(submit_text, text="View Bookshelf", width=10, command=self.view_bookshelf)
+    view_shelf.grid(row=1, column=1, padx=5)
 
 
     self.statusLabel = Label(parent_frame)
@@ -146,7 +145,7 @@ class ChatClient(Frame):
         data = clientsoc.recv(self.buffsize)
         if not data:
             break
-        if "BOOK" in data: 
+        if "REQUEST" in data: 
           book = data.split("BOOK:")[1]
           message = None
           if book in self.books.keys():  
@@ -169,7 +168,7 @@ class ChatClient(Frame):
     clientsoc.close()
     self.status("Client disconnected from %s:%s" % clientaddr)
   
-  def handle_send(self):
+  def handle_request(self):
     if self.server_status == 0:
       self.status("Set server address first")
       return
@@ -178,8 +177,19 @@ class ChatClient(Frame):
         return
     self.log_message("me", msg)
     for client in self.peers.keys():
-      client.send("BOOK:" + msg)
+      client.send("REQUEST:" + msg)
   
+  def handle_return(self): 
+    if self.server_status == 0:
+      self.status("Set server address first")
+      return
+    msg = self.message.get().replace(' ','')
+    if msg == '':
+        return
+    self.log_message("me", msg)
+    for client in self.peers.keys():
+      client.send("RETURN:" + msg)
+
   def log_message(self, client, msg):
     self.received_messages.config(state=NORMAL)
     self.received_messages.insert("end",client+": "+msg+"\n")
@@ -191,10 +201,10 @@ class ChatClient(Frame):
     self.friends.insert(self.counter,"%s:%s" % clientaddr)
   
   def remove_client(self, clientsoc, clientaddr):
-      print self.peers
-      self.friends.delete(self.peers[clientsoc])
-      del self.peers[clientsoc]
-      print self.peers
+    print self.peers
+    self.friends.delete(self.peers[clientsoc])
+    del self.peers[clientsoc]
+    print self.peers
   
   def status(self, msg):
     self.statusLabel.config(text=msg)
