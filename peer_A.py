@@ -139,7 +139,16 @@ class ChatClient(Frame):
         data = clientsoc.recv(self.buffsize)
         if not data:
             break
-        self.log_message("%s:%s" % clientaddr, data)
+        if "BOOK" in data: 
+          book = data.split("BOOK:")[1]
+          message = None
+          if book in self.books:  
+            message = "I have that book"
+          else: 
+            message = "I don't have that book"
+          self.log_message("%s:%s" % clientaddr, message)
+        else:
+          self.log_message("%s:%s" % clientaddr, data)
       except:
           print(sys.exc_info())
           break
@@ -156,7 +165,7 @@ class ChatClient(Frame):
         return
     self.log_message("me", msg)
     for client in self.peers.keys():
-      client.send(msg)
+      client.send("BOOK:" + msg)
   
   def log_message(self, client, msg):
     self.received_messages.config(state=NORMAL)

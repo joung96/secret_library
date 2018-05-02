@@ -33,7 +33,7 @@ class ChatClient(Frame):
     self.server_ip.set("127.0.0.1")
     server_ip_field = Entry(main_window, width=15, textvariable=self.server_ip)
     self.server_port = StringVar()
-    self.server_port.set("8090")
+    self.server_port.set("8091")
     server_port_field = Entry(main_window, width=5, textvariable=self.server_port)
     server_set = Button(main_window, text="Set", width=10, command=self.handle_set_server)
     add_client = Label(main_window, text="Add peer: ")
@@ -41,7 +41,7 @@ class ChatClient(Frame):
     self.client_ip.set("127.0.0.1")
     client_ip_field = Entry(main_window, width=15, textvariable=self.client_ip)
     self.client_port = StringVar()
-    self.client_port.set("8091")
+    self.client_port.set("8090")
     client_port_field = Entry(main_window, width=5, textvariable=self.client_port)
     client_set = Button(main_window, text="Add", width=10, command=self.handle_add_client)
     server_name.grid(row=0, column=0)
@@ -139,7 +139,16 @@ class ChatClient(Frame):
         data = clientsoc.recv(self.buffsize)
         if not data:
             break
-        self.log_message("%s:%s" % clientaddr, data)
+        if "BOOK" in data: 
+          book = data.split("BOOK:")[1]
+          message = None
+          if book in self.books:  
+            message = "I have that book"
+          else: 
+            message = "I don't have that book"
+          self.log_message("%s:%s" % clientaddr, message)
+        else:
+          self.log_message("%s:%s" % clientaddr, data)
       except:
           print(sys.exc_info())
           break
@@ -156,7 +165,7 @@ class ChatClient(Frame):
         return
     self.log_message("me", msg)
     for client in self.peers.keys():
-      client.send(msg)
+      client.send("BOOK:" + msg)
   
   def log_message(self, client, msg):
     self.received_messages.config(state=NORMAL)
