@@ -1,7 +1,11 @@
 from Tkinter import *
 from ttk import *
+from enum import Enum
 import socket
 import thread
+
+CHECKED_OUT = 0 
+CHECKED_IN = 1
 
 class ChatClient(Frame):
   
@@ -14,9 +18,9 @@ class ChatClient(Frame):
     self.buffsize = 1024
     self.peers = {}
     self.counter = 0
-    self.books = ["F", "G", "H", "I", "J"]
-
-    self.log_message("bookshelf", str(self.books))
+    self.books = {"F": CHECKED_IN, "G": CHECKED_IN, "H": CHECKED_IN, 
+                  "I": CHECKED_IN, "J": CHECKED_IN}
+    self.view_bookshelf()
   
   def draw_gui(self):
     self.root.title("Secret Library")
@@ -71,7 +75,7 @@ class ChatClient(Frame):
     send_message2 = Button(submit_text, text="Return", width=10, command=self.handle_send)
     send_message2.grid(row=0, column=2, padx=5)
 
-    send_message2 = Button(submit_text, text="Browse", width=10, command=self.handle_send)
+    send_message2 = Button(submit_text, text="View Bookshelf", width=10, command=self.view_bookshelf)
     send_message2.grid(row=1, column=1, padx=5)
 
 
@@ -113,8 +117,11 @@ class ChatClient(Frame):
       self.add_client(clientsoc, clientaddr)
       thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
       for client in self.peers.keys():
-        client.send(str(self.books))
+        client.send(str(self.books.keys()))
     self.server_socket.close()
+
+  def view_bookshelf(self): 
+    self.log_message("bookshelf", str(self.books.keys()))
   
   def handle_add_client(self):
     if self.server_status == 0:
@@ -128,7 +135,7 @@ class ChatClient(Frame):
         self.add_client(clientsoc, clientaddr)
         thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
         for client in self.peers.keys():
-          client.send(str(self.books))
+          client.send(str(self.books.keys()))
     except:
         print(sys.exc_info())
         self.status("Error connecting to client")
@@ -142,11 +149,17 @@ class ChatClient(Frame):
         if "BOOK" in data: 
           book = data.split("BOOK:")[1]
           message = None
-          if book in self.books:  
-            message = "I have that book"
+          if book in self.books.keys():  
+            message = "LEND:" + book
+            self.books[book] = CHECKED_OUT
           else: 
-            message = "I don't have that book"
-          self.log_message("%s:%s" % clientaddr, message)
+            message = "sorry, don't have that!"
+          for client in self.peers.keys():
+            client.send(message)
+        elif "LEND" in data: 
+          book = data.split("LEND:")[1]
+          self.books[book] = CHECKED_IN 
+          self.log_message("bookshelf", str(self.books.keys()))
         else:
           self.log_message("%s:%s" % clientaddr, data)
       except:
