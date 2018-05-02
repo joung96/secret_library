@@ -106,6 +106,7 @@ class ChatClient(Frame):
       self.name = self.name.get().replace(' ','')
       if self.name == '':
           self.name = "%s:%s" % server_address
+      self.log_message("me", "successfully set server address")
     except:
         print(sys.exc_info())
         self.status("Error in server bootstrap")
@@ -147,7 +148,7 @@ class ChatClient(Frame):
         if not data:
             break
         if "REQUEST" in data: 
-          book = data.split("BOOK:")[1]
+          book = data.split("REQUEST:")[1]
           message = None
           if book in self.books.keys():  
             message = "LEND:" + book
