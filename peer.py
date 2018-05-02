@@ -75,10 +75,7 @@ class ChatClient(Frame):
     self.message_field.grid(row=0, column=0, sticky=W)
     send_message.grid(row=0, column=1, padx=5)
 
-    # send_return = Button(submit_text, text="Return", width=10, command=self.handle_return)
-    # send_return.grid(row=0, column=2, padx=5)
-
-    view_shelf = Button(submit_text, text="View Bookshelf", width=10, command=self.view_bookshelf)
+    view_shelf = Button(submit_text, text="View Bookshelf", width=15, command=self.view_bookshelf)
     view_shelf.grid(row=1, column=1, padx=5)
 
 
