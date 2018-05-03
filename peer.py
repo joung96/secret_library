@@ -23,11 +23,12 @@ class ChatClient(Frame):
     self.counter = 0
     self.books = {}
     self.book_database = {}
+    self.current_request = None
     self.lock = thread.allocate_lock()
     dictionary = list(string.ascii_uppercase)
     for i in range(5):
       self.books[dictionary[i + (client_id - 1) * 5]] = CHECKED_IN
-    self.log_message("bookshelf", str(self.books.keys()))
+    self.view_bookshelf()
     self.server_port = str(8080 + client_id)
     self.server_ip = "127.0.0.1"
     self.handle_set_server()
@@ -107,7 +108,11 @@ class ChatClient(Frame):
     self.server_socket.close()
 
   def view_bookshelf(self): 
-    self.log_message("bookshelf", str(self.books.keys()))
+    checked_in = [] 
+    for book, status in self.books.iteritems(): 
+      if status == CHECKED_IN: 
+        checked_in.append(book)
+    self.log_message("bookshelf", str(checked_in))
   
   def handle_add_client(self, client_ip, client_port, show_books):
     if self.server_status == 0:
@@ -147,8 +152,9 @@ class ChatClient(Frame):
               client.send(message)
         elif "LEND" in data: 
           book = data.split("LEND:")[1]
-          self.books[book] = CHECKED_IN 
-          self.log_message("bookshelf", str(self.books.keys()))
+          if book == self.current_request:
+            self.books[book] = CHECKED_IN 
+            self.view_bookshelf()
         elif "SHELF" in data: 
           print("heya2" + str(clientaddr))
           self.log_message("%s:%s" % clientaddr, data.split("SHELF:")[1])
@@ -169,6 +175,7 @@ class ChatClient(Frame):
     if msg == '':
         return
     self.log_message("me", msg)
+    self.current_request = msg
     for client in self.peers.keys():
       client.send("REQUEST:" + msg)
   
