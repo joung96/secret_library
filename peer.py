@@ -3,6 +3,7 @@ from ttk import *
 from enum import Enum
 import socket
 import thread
+import time
 import string
 
 CHECKED_OUT = 0 
@@ -13,6 +14,7 @@ class ChatClient(Frame):
   def __init__(self, root, client_id):
     Frame.__init__(self, root)
     self.root = root
+    self.name = str(client_id)
     self.draw_gui()
     self.server_socket = None
     self.server_status = 0
@@ -20,47 +22,31 @@ class ChatClient(Frame):
     self.peers = {}
     self.counter = 0
     self.books = {}
+    self.book_database = {}
+    self.lock = thread.allocate_lock()
     dictionary = list(string.ascii_uppercase)
     for i in range(5):
       self.books[dictionary[i + (client_id - 1) * 5]] = CHECKED_IN
-
     self.log_message("bookshelf", str(self.books.keys()))
-  
+    self.server_port = str(8080 + client_id)
+    self.server_ip = "127.0.0.1"
+    self.handle_set_server()
+    time.sleep(2)
+
+    # if there are multiple clients
+    if client_id != 1: 
+      cursor_id = client_id - 1
+      while cursor_id > 0:
+        client_port = 8080 + cursor_id
+        print("sending to:" + str(client_port))
+        self.handle_add_client("127.0.0.1", client_port, True)
+        cursor_id -= 1
+
   def draw_gui(self):
     self.root.title("Secret Library")
     
     parent_frame = Frame(self.root)
     parent_frame.grid(stick=E+W+N+S)
-    
-    main_window = Frame(parent_frame)
-    server_name = Label(main_window, text="Set: ")
-    self.name = StringVar()
-    self.name.set("name")
-    name_field = Entry(main_window, width=10, textvariable=self.name)
-    self.server_ip = StringVar()
-    self.server_ip.set("127.0.0.1")
-    server_ip_field = Entry(main_window, width=15, textvariable=self.server_ip)
-    self.server_port = StringVar()
-    self.server_port.set("8090")
-    server_port_field = Entry(main_window, width=5, textvariable=self.server_port)
-    server_set = Button(main_window, text="Set", width=10, command=self.handle_set_server)
-    add_client = Label(main_window, text="Add peer: ")
-    self.client_ip = StringVar()
-    self.client_ip.set("127.0.0.1")
-    client_ip_field = Entry(main_window, width=15, textvariable=self.client_ip)
-    self.client_port = StringVar()
-    self.client_port.set("8091")
-    client_port_field = Entry(main_window, width=5, textvariable=self.client_port)
-    client_set = Button(main_window, text="Add", width=10, command=self.handle_add_client)
-    server_name.grid(row=0, column=0)
-    name_field.grid(row=0, column=1)
-    server_ip_field.grid(row=0, column=2)
-    server_port_field.grid(row=0, column=3)
-    server_set.grid(row=0, column=4, padx=5)
-    add_client.grid(row=0, column=5)
-    client_ip_field.grid(row=0, column=6)
-    client_port_field.grid(row=0, column=7)
-    client_set.grid(row=0, column=8, padx=5)
     
     logs = Frame(parent_frame)
     self.received_messages = Text(logs, bg="white", width=60, height=30, state=DISABLED)
@@ -83,7 +69,6 @@ class ChatClient(Frame):
 
     footer = Label(parent_frame, text="Secret Library")
     
-    main_window.grid(row=0, column=0)
     logs.grid(row=1, column=0)
     submit_text.grid(row=2, column=0, pady=10)
     self.statusLabel.grid(row=3, column=0)
@@ -95,7 +80,7 @@ class ChatClient(Frame):
         self.server_socket.close()
         self.server_socket = None
         self.server_status = 0
-      server_address = (self.server_ip.get().replace(' ',''), int(self.server_port.get().replace(' ','')))
+      server_address = (self.server_ip.replace(' ',''), int(self.server_port.replace(' ','')))
 
       self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       self.server_socket.bind(server_address)
@@ -103,7 +88,7 @@ class ChatClient(Frame):
       self.status("Server listening on %s:%s" % server_address)
       thread.start_new_thread(self.client,())
       self.server_status = 1
-      self.name = self.name.get().replace(' ','')
+      self.name = self.name.replace(' ','')
       if self.name == '':
           self.name = "%s:%s" % server_address
       self.log_message("me", "successfully set server address")
@@ -116,27 +101,32 @@ class ChatClient(Frame):
       clientsoc, clientaddr = self.server_socket.accept()
       self.status("Client connected from %s:%s" % clientaddr)
       self.add_client(clientsoc, clientaddr)
-      thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
       for client in self.peers.keys():
         client.send(str(self.books.keys()))
+      thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
     self.server_socket.close()
 
   def view_bookshelf(self): 
     self.log_message("bookshelf", str(self.books.keys()))
   
-  def handle_add_client(self):
+  def handle_add_client(self, client_ip, client_port, show_books):
     if self.server_status == 0:
       self.status("Set server address first")
-      return
-    clientaddr = (self.client_ip.get().replace(' ',''), int(self.client_port.get().replace(' ','')))
+      return None
+    clientaddr = (client_ip, client_port)
     try:
         clientsoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         clientsoc.connect(clientaddr)
         self.status("Connected to client on %s:%s" % clientaddr)
         self.add_client(clientsoc, clientaddr)
+        if show_books:
+          print("handle" +  str(self.books.keys()))
+          for client in self.peers.keys():
+            print("heya: " + str(client))
+            client.send("SHELF:"  + str(self.books.keys()))
         thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
-        for client in self.peers.keys():
-          client.send(str(self.books.keys()))
+
+        return
     except:
         print(sys.exc_info())
         self.status("Error connecting to client")
@@ -153,14 +143,15 @@ class ChatClient(Frame):
           if book in self.books.keys():  
             message = "LEND:" + book
             self.books[book] = CHECKED_OUT
-          else: 
-            message = "sorry, don't have that!"
-          for client in self.peers.keys():
-            client.send(message)
+            for client in self.peers.keys():
+              client.send(message)
         elif "LEND" in data: 
           book = data.split("LEND:")[1]
           self.books[book] = CHECKED_IN 
           self.log_message("bookshelf", str(self.books.keys()))
+        elif "SHELF" in data: 
+          print("heya2" + str(clientaddr))
+          self.log_message("%s:%s" % clientaddr, data.split("SHELF:")[1])
         else:
           self.log_message("%s:%s" % clientaddr, data)
       except:
@@ -193,20 +184,23 @@ class ChatClient(Frame):
       client.send("REQUEST:" + msg)
       
   def log_message(self, client, msg):
+    self.lock.acquire()
     self.received_messages.config(state=NORMAL)
+    print("logging " + msg)
     self.received_messages.insert("end",client+": "+msg+"\n")
     self.received_messages.config(state=DISABLED)
+    self.lock.release()
   
   def add_client(self, clientsoc, clientaddr):
     self.peers[clientsoc]=self.counter
     self.counter += 1
     self.friends.insert(self.counter,"%s:%s" % clientaddr)
+    self.book_database[clientsoc]=[]
   
   def remove_client(self, clientsoc, clientaddr):
-    print self.peers
     self.friends.delete(self.peers[clientsoc])
     del self.peers[clientsoc]
-    print self.peers
+    del self.book_database[clientsoc]
   
   def status(self, msg):
     self.statusLabel.config(text=msg)
