@@ -111,7 +111,7 @@ class ChatClient(Frame):
     for book, status in self.books.iteritems(): 
       if status == CHECKED_IN: 
         checked_in.append(book)
-    self.log_message("bookshelf", str(checked_in))
+    self.log_message("my bookshelf", str(checked_in))
   
   def handle_add_client(self, client_ip, client_port, show_books):
     if self.server_status == 0:
@@ -149,21 +149,18 @@ class ChatClient(Frame):
             self.books[book] = CHECKED_OUT
             for client in self.peers.keys():
               client.send(message)
+            self.view_bookshelf()
         elif "LEND" in data: 
           book = data.split("LEND:")[1]
           for client, books in self.book_database.iteritems():
             if book in books[1]: 
               self.lock.acquire()
               lst = books[1]
-              print(lst)
-              new_lst = lst.remove(book)
-              print(new_lst)
+              lst.remove(str(book))
               self.friends.delete(books[0])
               self.counter += 1
-              print("coffee" + str(new_lst))
-              self.friends.insert(self.counter, str(new_lst))
-              self.book_database[client] = (self.counter, new_lst)
-              print(self.book_database)
+              self.friends.insert(self.counter, str(lst))
+              self.book_database[client] = (self.counter, lst)
               self.lock.release()
           if book == self.current_request:
             self.books[book] = CHECKED_IN 
@@ -200,7 +197,7 @@ class ChatClient(Frame):
     counter = 0
     while counter < len(lst_data): 
       if lst_data[counter] in letters: 
-        result.append(lst_data[counter])
+        result.append(str(lst_data[counter]))
       counter += 1
     return result
   
