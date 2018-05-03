@@ -65,7 +65,6 @@ class ChatClient(Frame):
     view_shelf = Button(submit_text, text="View Bookshelf", width=15, command=self.view_bookshelf)
     view_shelf.grid(row=1, column=1, padx=5)
 
-
     self.statusLabel = Label(parent_frame)
 
     footer = Label(parent_frame, text="Secret Library")
@@ -103,7 +102,7 @@ class ChatClient(Frame):
       self.status("Client connected from %s:%s" % clientaddr)
       self.add_client(clientsoc, clientaddr)
       for client in self.peers.keys():
-        client.send(str(self.books.keys()))
+        client.send("SHELF:" + str(self.books.keys()))
       thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
     self.server_socket.close()
 
@@ -157,7 +156,10 @@ class ChatClient(Frame):
             self.view_bookshelf()
         elif "SHELF" in data: 
           print("heya2" + str(clientaddr))
-          self.log_message("%s:%s" % clientaddr, data.split("SHELF:")[1])
+          if self.book_database[clientsoc] != list(data.split("SHELF:")[1]):
+            self.book_database[clientsoc] = list(data.split("SHELF:")[1])
+            self.counter += 1
+            self.friends.insert(self.counter, data.split("SHELF:")[1])
         else:
           self.log_message("%s:%s" % clientaddr, data)
       except:
@@ -200,8 +202,6 @@ class ChatClient(Frame):
   
   def add_client(self, clientsoc, clientaddr):
     self.peers[clientsoc]=self.counter
-    self.counter += 1
-    self.friends.insert(self.counter,"%s:%s" % clientaddr)
     self.book_database[clientsoc]=[]
   
   def remove_client(self, clientsoc, clientaddr):
