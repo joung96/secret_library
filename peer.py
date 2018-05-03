@@ -151,15 +151,37 @@ class ChatClient(Frame):
               client.send(message)
         elif "LEND" in data: 
           book = data.split("LEND:")[1]
+          for client, books in self.book_database.iteritems():
+            if book in books[1]: 
+              self.lock.acquire()
+              lst = books[1]
+              print(lst)
+              new_lst = lst.remove(book)
+              print(new_lst)
+              self.friends.delete(books[0])
+              self.counter += 1
+              print("coffee" + str(new_lst))
+              self.friends.insert(self.counter, str(new_lst))
+              self.book_database[client] = (self.counter, new_lst)
+              print(self.book_database)
+              self.lock.release()
           if book == self.current_request:
             self.books[book] = CHECKED_IN 
             self.view_bookshelf()
+            self.current_request = None
+
         elif "SHELF" in data: 
           print("heya2" + str(clientaddr))
-          if self.book_database[clientsoc] != list(data.split("SHELF:")[1]):
-            self.book_database[clientsoc] = list(data.split("SHELF:")[1])
+          shelf = self.string_to_list(data.split("SHELF:")[1])
+          print(shelf)
+          print(self.book_database[clientsoc])
+          if self.book_database[clientsoc] != shelf:
+            self.lock.acquire()
             self.counter += 1
+            self.book_database[clientsoc] = (self.counter, shelf)
             self.friends.insert(self.counter, data.split("SHELF:")[1])
+            print(self.book_database)
+            self.lock.release()
         else:
           self.log_message("%s:%s" % clientaddr, data)
       except:
@@ -168,6 +190,19 @@ class ChatClient(Frame):
     self.remove_client(clientsoc, clientaddr)
     clientsoc.close()
     self.status("Client disconnected from %s:%s" % clientaddr)
+
+  def string_to_list(self, data):
+    print("oh no")
+    print(data) 
+    lst_data = list(data)
+    result = []
+    letters = string.ascii_uppercase
+    counter = 0
+    while counter < len(lst_data): 
+      if lst_data[counter] in letters: 
+        result.append(lst_data[counter])
+      counter += 1
+    return result
   
   def handle_request(self):
     if self.server_status == 0:
@@ -202,7 +237,8 @@ class ChatClient(Frame):
   
   def add_client(self, clientsoc, clientaddr):
     self.peers[clientsoc]=self.counter
-    self.book_database[clientsoc]=[]
+    self.book_database[clientsoc]=None
+    print(self.book_database)
   
   def remove_client(self, clientsoc, clientaddr):
     self.friends.delete(self.peers[clientsoc])
