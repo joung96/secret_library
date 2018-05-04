@@ -43,6 +43,8 @@ class ChatClient(Frame):
         self.handle_add_client("127.0.0.1", client_port, True)
         cursor_id -= 1
 
+    self.friends.insert(self.counter, "MY FRIENDS' BOOKS")
+
   def draw_gui(self):
     self.root.title("Secret Library")
     
@@ -91,7 +93,6 @@ class ChatClient(Frame):
       self.name = self.name.replace(' ','')
       if self.name == '':
           self.name = "%s:%s" % server_address
-      self.log_message("me", "successfully set server address")
     except:
         print(sys.exc_info())
         self.status("Error in server bootstrap")
@@ -157,7 +158,9 @@ class ChatClient(Frame):
               self.lock.acquire()
               lst = books[1]
               lst.remove(str(book))
+              print(books[0])
               self.friends.delete(books[0])
+              print(self.friends) 
               self.counter += 1
               self.friends.insert(self.counter, str(lst))
               self.book_database[client] = (self.counter, lst)
@@ -172,7 +175,7 @@ class ChatClient(Frame):
           shelf = self.string_to_list(data.split("SHELF:")[1])
           print(shelf)
           print(self.book_database[clientsoc])
-          if self.book_database[clientsoc] != shelf:
+          if not self.book_database[clientsoc] or self.book_database[clientsoc][1] != shelf:
             self.lock.acquire()
             self.counter += 1
             self.book_database[clientsoc] = (self.counter, shelf)
@@ -208,7 +211,7 @@ class ChatClient(Frame):
     msg = self.message.get().replace(' ','')
     if msg == '':
         return
-    self.log_message("me", msg)
+    self.log_message("resuested", msg)
     self.current_request = msg
     for client in self.peers.keys():
       client.send("REQUEST:" + msg)
@@ -233,9 +236,8 @@ class ChatClient(Frame):
     self.lock.release()
   
   def add_client(self, clientsoc, clientaddr):
-    self.peers[clientsoc]=self.counter
+    self.peers[clientsoc]=None
     self.book_database[clientsoc]=None
-    print(self.book_database)
   
   def remove_client(self, clientsoc, clientaddr):
     self.friends.delete(self.peers[clientsoc])
