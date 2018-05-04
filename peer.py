@@ -9,9 +9,10 @@ import string
 CHECKED_OUT = 0 
 CHECKED_IN = 1
 
-class ChatClient(Frame):
+class Library(Frame):
   
   def __init__(self, root, client_id):
+    # bootstrap node
     Frame.__init__(self, root)
     self.root = root
     self.name = str(client_id)
@@ -27,9 +28,19 @@ class ChatClient(Frame):
     for i in range(5):
       self.books[dictionary[i + (client_id - 1) * 5]] = CHECKED_IN
     self.view_bookshelf()
+
+    # server setup
     self.server_port = str(8080 + client_id)
     self.server_ip = socket.gethostname()
-    self.handle_set_server()
+
+    try:
+      server_address = (self.server_ip, int(self.server_port))
+      self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      self.server_socket.bind(server_address)
+      self.server_socket.listen(5)
+      thread.start_new_thread(self.client,())
+    except:
+        print(sys.exc_info())
 
     # if there are multiple clients
     if client_id != 1: 
@@ -46,19 +57,19 @@ class ChatClient(Frame):
     self.root.title("Secret Library")
     
     parent_frame = Frame(self.root)
-    parent_frame.grid(stick=E+W+N+S)
+    parent_frame.grid()
     
     logs = Frame(parent_frame)
     self.received_messages = Text(logs, bg="white", width=60, height=30, state=DISABLED)
-    self.friends = Listbox(logs, bg="white", width=30, height=30)
-    self.received_messages.grid(row=0, column=0, sticky=W+N+S, padx = (0,10))
-    self.friends.grid(row=0, column=1, sticky=E+N+S)
+    self.friends = Listbox(logs, bg="white", width=30, height=20)
+    self.received_messages.grid(row=0, column=0, padx = (0,10))
+    self.friends.grid(row=0, column=1)
 
     submit_text = Frame(parent_frame)
     self.message = StringVar()
     self.message_field = Entry(submit_text, width=20, textvariable=self.message)
     send_message = Button(submit_text, text="Request", width=10, command=self.handle_request)
-    self.message_field.grid(row=0, column=0, sticky=W)
+    self.message_field.grid(row=0, column=0)
     send_message.grid(row=0, column=1, padx=5)
 
     view_shelf = Button(submit_text, text="View Bookshelf", width=15, command=self.view_bookshelf)
@@ -66,17 +77,7 @@ class ChatClient(Frame):
     
     logs.grid(row=1, column=0)
     submit_text.grid(row=2, column=0, pady=10)
-    
-  def handle_set_server(self):
-    try:
-      server_address = (self.server_ip, int(self.server_port))
-      self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.server_socket.bind(server_address)
-      self.server_socket.listen(5)
-      thread.start_new_thread(self.client,())
-    except:
-        print(sys.exc_info())
-    
+
   def client(self):
     while 1:
       clientsoc, clientaddr = self.server_socket.accept()
@@ -201,7 +202,7 @@ class ChatClient(Frame):
   
 def main(client_id):  
   root = Tk()
-  ChatClient(root, client_id)
+  Library(root, client_id)
   root.mainloop()  
 
 if __name__ == '__main__':
