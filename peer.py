@@ -129,13 +129,16 @@ class Library(Frame):
             if book in books[1]: 
               self.lock.acquire()
               lst = books[1]
-              lst.remove(str(book))
+              print(lst)
+              print(book)
+              lst.remove(book)
               self.friends.delete(books[0])
               self.counter += 1
               self.friends.insert(self.counter, str(lst))
               self.book_database[client] = (self.counter, lst)
               self.lock.release()
           if book == self.current_request:
+            print("im dumb")
             self.books[book] = CHECKED_IN 
             self.view_bookshelf()
             self.current_request = None
@@ -148,8 +151,6 @@ class Library(Frame):
             self.book_database[clientsoc] = (self.counter, shelf)
             self.friends.insert(self.counter, data.split("SHELF:")[1])
             self.lock.release()
-        else:
-          self.log_message("%s:%s" % clientaddr, data)
       except:
           print(sys.exc_info())
           break
@@ -168,19 +169,15 @@ class Library(Frame):
     return result
   
   def handle_request(self):
-    msg = self.message.get().replace(' ','')
-    if msg == '':
-        return
+    msg = self.message.get().upper()
     self.log_message("requested", msg)
     self.current_request = msg
     for client in self.peers.keys():
       client.send("REQUEST:" + msg)
   
   def handle_return(self): 
-    msg = self.message.get().replace(' ','')
-    if msg == '':
-        return
-    self.log_message("me", msg)
+    msg = self.message.get()
+    self.log_message("requested", msg)
     for client in self.peers.keys():
       client.send("REQUEST:" + msg)
       
