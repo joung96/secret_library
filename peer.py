@@ -129,8 +129,6 @@ class Library(Frame):
             if book in books[1]: 
               self.lock.acquire()
               lst = books[1]
-              print(lst)
-              print(book)
               lst.remove(book)
               self.friends.delete(books[0])
               self.counter += 1
@@ -138,7 +136,6 @@ class Library(Frame):
               self.book_database[client] = (self.counter, lst)
               self.lock.release()
           if book == self.current_request:
-            print("im dumb")
             self.books[book] = CHECKED_IN 
             self.view_bookshelf()
             self.current_request = None
