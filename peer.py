@@ -1,6 +1,5 @@
 from Tkinter import *
 from ttk import *
-from enum import Enum
 import socket
 import thread
 import time
