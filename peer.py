@@ -103,14 +103,17 @@ class Library(Frame):
 
   def handle_add_book(self):
     msg = self.new_book.get().upper().strip()
-    self.log_message("added new book", msg)
-    self.lock.acquire()
-    self.books[msg] = CHECKED_IN
-    for client in self.peers.keys():
-        client.send("SHELF:" + str(self.get_checked_in_books()))
-    self.lock.release()
-    self.view_bookshelf()
-  
+    if len(msg) == 1:
+      self.log_message("added new book", msg)
+      self.lock.acquire()
+      self.books[msg] = CHECKED_IN
+      for client in self.peers.keys():
+          client.send("SHELF:" + str(self.get_checked_in_books()))
+      self.lock.release()
+      self.view_bookshelf()
+    else: 
+      self.log_message("ERROR", "book title length must be 1")
+    
   def handle_add_client(self, client_port, show_books):
     clientaddr = (socket.gethostname(), client_port)
     try:
@@ -191,16 +194,13 @@ class Library(Frame):
   
   def handle_request(self):
     msg = self.message.get().upper().strip()
-    self.log_message("requested", msg)
-    self.current_request = msg
-    for client in self.peers.keys():
-      client.send("REQUEST:" + msg)
-  
-  def handle_return(self): 
-    msg = self.message.get()
-    self.log_message("requested", msg)
-    for client in self.peers.keys():
-      client.send("REQUEST:" + msg)
+    if len(msg) ==  1:
+      self.log_message("requested", msg)
+      self.current_request = msg
+      for client in self.peers.keys():
+        client.send("REQUEST:" + msg)
+    else: 
+      self.log_message("ERROR", "book title length must be 1")
       
   def log_message(self, client, msg):
     self.lock.acquire()
