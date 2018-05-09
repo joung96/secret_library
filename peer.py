@@ -50,7 +50,7 @@ class Library(Frame):
         self.handle_add_client(client_port, True)
         cursor_id -= 1
 
-    self.friends.insert(self.counter, "MY FRIENDS' BOOKS")
+    self.friends.insert(END, "MY FRIENDS' BOOKS")
 
   def draw_gui(self):
     self.root.title("Secret Library")
@@ -71,27 +71,45 @@ class Library(Frame):
     self.message_field.grid(row=0, column=0)
     send_message.grid(row=0, column=1, padx=5)
 
-    view_shelf = Button(submit_text, text="View Bookshelf", width=15, command=self.view_bookshelf)
-    view_shelf.grid(row=1, column=1, padx=5)
+    submit_text2 = Frame(parent_frame)
+    self.new_book = StringVar()
+    self.new_book_field = Entry(submit_text2, width=20, textvariable=self.new_book)
+    send_new_book = Button(submit_text2, text="Add Book", width=10, command=self.handle_add_book)
+    self.new_book_field.grid(row=1, column=0)
+    send_new_book.grid(row=1, column=1, padx=5)
     
     logs.grid(row=1, column=0)
     submit_text.grid(row=2, column=0, pady=10)
+    submit_text2.grid(row=3, column=0, pady=10)
 
   def client(self):
     while 1:
       clientsoc, clientaddr = self.server_socket.accept()
       self.add_client(clientsoc, clientaddr)
       for client in self.peers.keys():
-        client.send("SHELF:" + str(self.books.keys()))
+        client.send("SHELF:" + str(self.get_checked_in_books()))
       thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
     self.server_socket.close()
 
   def view_bookshelf(self): 
+    self.log_message("my bookshelf", str(self.get_checked_in_books()))
+
+  def get_checked_in_books(self): 
     checked_in = [] 
-    for book, status in self.books.iteritems(): 
+    for book, status in self.books.iteritems():  
       if status == CHECKED_IN: 
-        checked_in.append(book)
-    self.log_message("my bookshelf", str(checked_in))
+        checked_in.append(book) 
+    return checked_in
+
+  def handle_add_book(self):
+    msg = self.new_book.get().upper().strip()
+    self.log_message("added new book", msg)
+    self.lock.acquire()
+    self.books[msg] = CHECKED_IN
+    for client in self.peers.keys():
+        client.send("SHELF:" + str(self.get_checked_in_books()))
+    self.lock.release()
+    self.view_bookshelf()
   
   def handle_add_client(self, client_port, show_books):
     clientaddr = (socket.gethostname(), client_port)
@@ -101,7 +119,7 @@ class Library(Frame):
         self.add_client(clientsoc, clientaddr)
         if show_books:
           for client in self.peers.keys():
-            client.send("SHELF:"  + str(self.books.keys()))
+            client.send("SHELF:"  + str(self.get_checked_in_books()))
         thread.start_new_thread(self.handle_client_message, (clientsoc, clientaddr))
         return
     except:
@@ -113,10 +131,11 @@ class Library(Frame):
         data = clientsoc.recv(1024)
         if not data:
             break
+      
         if "REQUEST" in data: 
           book = data.split("REQUEST:")[1]
           message = None
-          if book in self.books.keys():  
+          if book in self.books.keys():
             message = "LEND:" + book
             self.books[book] = CHECKED_OUT
             for client in self.peers.keys():
@@ -124,29 +143,35 @@ class Library(Frame):
             self.view_bookshelf()
         elif "LEND" in data: 
           book = data.split("LEND:")[1]
+          self.lock.acquire()
           for client, books in self.book_database.iteritems():
             if book in books[1]: 
-              self.lock.acquire()
               lst = books[1]
               lst.remove(book)
               self.friends.delete(books[0])
-              self.counter += 1
-              self.friends.insert(self.counter, str(lst))
-              self.book_database[client] = (self.counter, lst)
-              self.lock.release()
+              self.friends.insert(books[0], str(lst))
+              self.book_database[client] = (books[0], lst)
+          self.lock.release()
           if book == self.current_request:
             self.books[book] = CHECKED_IN 
             self.view_bookshelf()
             self.current_request = None
-
+            for client in self.peers.keys():
+              client.send("SHELF:"  + str(self.get_checked_in_books()))
         elif "SHELF" in data: 
+          self.lock.acquire()
           shelf = self.string_to_list(data.split("SHELF:")[1])
           if not self.book_database[clientsoc] or self.book_database[clientsoc][1] != shelf:
-            self.lock.acquire()
+            if self.book_database[clientsoc] != None:
+              self.friends.delete(self.book_database[clientsoc][0])
+              self.friends.insert(self.book_database[clientsoc][0], str(shelf))
+              self.book_database[clientsoc] = (self.book_database[clientsoc][0], shelf)
+              self.lock.release()
+              continue
             self.counter += 1
-            self.book_database[clientsoc] = (self.counter, shelf)
             self.friends.insert(self.counter, data.split("SHELF:")[1])
-            self.lock.release()
+            self.book_database[clientsoc] = (self.counter, shelf)
+          self.lock.release()
       except:
           print(sys.exc_info())
           break
@@ -165,7 +190,7 @@ class Library(Frame):
     return result
   
   def handle_request(self):
-    msg = self.message.get().upper()
+    msg = self.message.get().upper().strip()
     self.log_message("requested", msg)
     self.current_request = msg
     for client in self.peers.keys():
