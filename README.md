@@ -1,3 +1,5 @@
+Make sure ports 8080 to ports (8080 + n) are free where n is the number of clients. <br/>
+
 How to run<br /><br />
 python peer.py <client_id> <br /><br />
 The client id is an integer greater than 0. Always start at 1 and increment the client id for each peer in the system. For example, for a system with three peers, run the following commands in this order: <br /><br />
